@@ -11,8 +11,8 @@ int otsuAlgThreshold(const Mat image);
 
 int main() 
 { 
-   Mat image=imread("girl.jpg");//读入一张图片
-   imshow("原图",image);   //在窗口中显示图像
+    Mat image=imread("girl.jpg");//读入一张图片，Mat是一种基本图像容器
+    imshow("原图",image);   //在窗口中显示图像
  
     //判断图像是否加载成功
     if(!image.data)
@@ -101,23 +101,31 @@ int otsuAlgThreshold(const Mat grayImage)
 	double Histogram[256] = {0}; //灰度直方图，下标是灰度值，保存内容是灰度值对应的像素点总数  
 	int Histogram1[256] = {0};   
 
-	uchar *data = grayImage.data;  
+	uchar *data = grayImage.data; //uchar型的指针。Mat类分为了两个部分:矩阵头和指向矩阵数据部分的指针，data就是指向矩阵数据的指针。
+	//Mat的存储形式和Matlab里的数组格式有点像，但一般是二维向量，如果是灰度图，一般存放<uchar>类型；如果是RGB彩色图，存放<Vec3b>类型。
+	//cout<<"grayImage of data: " << grayImage.data << endl;
 
 	double totalNum = grayImage.rows * grayImage.cols; //像素总数  
+	cout<<"grayImage of rows: " << grayImage.rows << endl;  
+	cout<<"grayImage of cols: " << grayImage.cols << endl;  
 
-	//计算灰度直方图分布，Histogram数组下标是灰度值，保存内容是灰度值对应像素点数  
+	//计算灰度直方图分布，Histogram数组下标是灰度值，保存内容是灰度值对应像素点数 (Histogram means 直方图) 
 	for(int i=0; i<grayImage.rows; i++)   //为表述清晰，并没有把rows和cols单独提出来  
 	{  
 		for(int j=0; j<grayImage.cols; j++)  
 		{  
-			Histogram[data[i*grayImage.step+j]]++;  
-			Histogram1[data[i*grayImage.step+j]]++;  
+			Histogram[ data[i * grayImage.step + j] ]++;  
+			Histogram1[ data[i * grayImage.step + j] ]++;  
 		}  
 	}  
-  
-	//***********画出图像直方图********************************  
-	Mat image1(255, 255, CV_8UC3); 
+	cout << "channel:" << grayImage.channels() << endl;//channels():图像的通道数，当图像时由BGR构成时通道数为3，灰度图像的通道数为1.
+	cout << "dims:" << grayImage.dims << endl;//dims: Mat矩阵的维度。
+	cout << "step[0]:" << grayImage.step[0] << endl;
+	cout << "step[1]:" << grayImage.step[1] << endl;
 
+	//***********画出图像直方图********************************  
+	Mat image1(255, 255, CV_8U); //Mat 的构造函数。CV_8U??
+   //Mat image1(255, 255, CV_8UC3); //Mat 的构造函数。CV_8U??
 	for(int i=0; i<255; i++)  
 	{  
 		Histogram1[i] = Histogram1[i] % 200;  
@@ -151,6 +159,7 @@ int otsuAlgThreshold(const Mat grayImage)
 		{  
 			break;  
 		}  
+
 		backgroundAvgGreylevel = backgroundAvgGreylevel / backgroundPixelsProportion; //背景像素平均灰度  
 		backgroundPixelsProportion = backgroundPixelsProportion / totalNum; // 背景部分像素点数所占比例 
 		//***********背景各分量值计算**************************  
@@ -161,7 +170,8 @@ int otsuAlgThreshold(const Mat grayImage)
 		{  
 			foregroundPixelsProportion += Histogram[k];  //前景部分像素点总数  
 			foregroundAvgGreylevel += k * Histogram[k]; //前景部分像素总灰度和  
-		}  
+		} 
+
 		if(foregroundPixelsProportion == 0) //前景部分像素点数为0时退出  
 		{  
 			break;  
