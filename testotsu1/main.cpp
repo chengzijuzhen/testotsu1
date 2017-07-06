@@ -1,9 +1,19 @@
 #include <iostream> 
+#include <math.h> 
 #include <opencv2/core/core.hpp> 
 #include <opencv2/highgui/highgui.hpp> 
 #include <opencv2/imgproc/imgproc.hpp>  
 using namespace cv;   
 using namespace std;  
+
+
+/***
+* 大津算法是一种图像灰度自适应的阈值分割算法，是1979年由日本学者大津提出，并由他的名字命名的。
+* 大津算法按照图像上灰度值的分布，将图像分成背景和前景两部分看待，前景就是我们要按照阈值分割出来的部分。
+* 背景和前景的分界值就是我们要求出的阈值。遍历不同的阈值，计算不同阈值下对应的背景和前景之间的类内方差，
+* 当类内方差取得极大值时，此时对应的阈值就是大津法（OTSU算法）所求的阈值。
+*/
+
 
 //***************Otsu算法通过求类间方差极大值求自适应阈值******************  
 int otsuAlgThreshold(const Mat image);  
@@ -67,8 +77,8 @@ cvThreshold()函数原型：
 值得一说的是threshold_type可以使用CV_THRESH_OTSU类型，这样该函数就会使用大律法OTSU得到的全局自适应阈值来进行二值化图片，而参数中的threshold不再起作用。
 比如：cvThreshold(src,dst,300,255,CV_THRESH_OTSU | CV_THRESH_BINARY_INV);这种方法对于灰度直方图呈现二峰特征的图片处理起来效果很好。
 
-*********************************************************************************************************
-*/
+ *********************************************************************************************************
+ */
 
 	threshold(grayImage,imageoutput,thresholdvalue,255,CV_THRESH_BINARY); //自己写的函数
 	threshold(grayImage,imageotsu,0,255,CV_THRESH_OTSU); //opencv otsu算法  
@@ -88,24 +98,31 @@ int otsuAlgThreshold(const Mat grayImage)
 		cout<<"Please input Gray-image!"<<endl;  
 		return 0;  
 	}  
-
-	int T=0; //Otsu算法阈值  
-
-	double varValue=0; //类间方差中间值保存  
-
-	double foregroundPixelsProportion = 0; //前景像素点数所占比例  
-	double backgroundPixelsProportion = 0; //背景像素点数所占比例  
-	double foregroundAvgGreylevel = 0; //前景平均灰度  
-	double backgroundAvgGreylevel = 0; //背景平均灰度  
-
+		
 	double Histogram[256] = {0}; //灰度直方图，下标是灰度值，保存内容是灰度值对应的像素点总数  
-	int Histogram1[256] = {0};   
+	int Histogram1[256] = {0};
+
+	int T=0; //Otsu算法阈值
+	double varValue=0; //类间方差中间值保存 
+
+	double foregroundPixelsSum = 0; //前景像素点数 
+	double backgroundPixelsSum = 0; //背景像素点数 
+
+	double foregroundProportion = 0; //前景像素点数所占比例  
+	double backgroundProportion = 0; //背景像素点数所占比例
+
+	double foregroundGreylevelSum = 0; //前景灰度总和  
+	double backgroundGreylevelSum = 0; //背景灰度总和  
+
+	double foregroundGreylevelAvg = 0; //前景平均灰度  
+	double backgroundGreylevelAvg = 0; //背景平均灰度  
 
 	uchar *data = grayImage.data; //uchar型的指针。Mat类分为了两个部分:矩阵头和指向矩阵数据部分的指针，data就是指向矩阵数据的指针。
 	//Mat的存储形式和Matlab里的数组格式有点像，但一般是二维向量，如果是灰度图，一般存放<uchar>类型；如果是RGB彩色图，存放<Vec3b>类型。
 	//cout<<"grayImage of data: " << grayImage.data << endl;
 
-	double totalNum = grayImage.rows * grayImage.cols; //像素总数  
+	double pixelSum = grayImage.rows * grayImage.cols; //像素总数 
+
 	cout<<"grayImage of rows: " << grayImage.rows << endl;  
 	cout<<"grayImage of cols: " << grayImage.cols << endl;  
 
@@ -124,8 +141,8 @@ int otsuAlgThreshold(const Mat grayImage)
 	cout << "step[1]:" << grayImage.step[1] << endl;
 
 	//***********画出图像直方图********************************  
-	Mat image1(255, 255, CV_8U); //Mat 的构造函数。CV_8U??
-   //Mat image1(255, 255, CV_8UC3); //Mat 的构造函数。CV_8U??
+	Mat image1(255, 255, CV_8UC3); //Mat的构造函数。这是一张256*256的彩图。
+
 	for(int i=0; i<255; i++)  
 	{  
 		Histogram1[i] = Histogram1[i] % 200;  
@@ -144,46 +161,46 @@ int otsuAlgThreshold(const Mat grayImage)
 	for(int i=0; i<255; i++)  
 	{  
 		//每次遍历之前初始化各变量  
-		backgroundPixelsProportion = 0;       
-		backgroundAvgGreylevel = 0;       
-		foregroundPixelsProportion = 0;       
-		foregroundAvgGreylevel = 0; 
+		backgroundPixelsSum = 0;  		      
+		foregroundPixelsSum = 0;
+		backgroundGreylevelSum = 0; 
+		foregroundGreylevelSum = 0; 
 
 		//***********背景各分量值计算**************************  
 		for(int j=0;j<=i;j++) //背景部分各值计算  
 		{  
-			backgroundPixelsProportion += Histogram[j];  //背景部分像素点总数  
-			backgroundAvgGreylevel += j * Histogram[j]; //背景部分像素总灰度和  
+			backgroundPixelsSum += Histogram[j];  //背景部分像素点总数  
+			backgroundGreylevelSum += j * Histogram[j]; //背景部分像素总灰度和  
 		}  
-		if(backgroundPixelsProportion == 0) //背景部分像素点数为0时退出  
+		if(backgroundPixelsSum == 0) //背景部分像素点数为0时退出  
 		{  
 			break;  
 		}  
 
-		backgroundAvgGreylevel = backgroundAvgGreylevel / backgroundPixelsProportion; //背景像素平均灰度  
-		backgroundPixelsProportion = backgroundPixelsProportion / totalNum; // 背景部分像素点数所占比例 
+		backgroundGreylevelAvg = backgroundGreylevelSum / backgroundPixelsSum; //背景像素平均灰度  
+		backgroundProportion = backgroundPixelsSum / pixelSum; // 背景部分像素点数所占比例 
 		//***********背景各分量值计算**************************  
 
   
 		//***********前景各分量值计算**************************  
-		for(int k=i+1;k<255;k++)  
+		for(int k=i+1; k<255; k++)  
 		{  
-			foregroundPixelsProportion += Histogram[k];  //前景部分像素点总数  
-			foregroundAvgGreylevel += k * Histogram[k]; //前景部分像素总灰度和  
+			foregroundPixelsSum += Histogram[k];  //前景部分像素点总数  
+			foregroundGreylevelSum += k * Histogram[k]; //前景部分像素总灰度和  
 		} 
 
-		if(foregroundPixelsProportion == 0) //前景部分像素点数为0时退出  
+		if(foregroundPixelsSum == 0) //前景部分像素点数为0时退出  
 		{  
 			break;  
 		}  
 
-		foregroundAvgGreylevel = foregroundAvgGreylevel / foregroundPixelsProportion; //前景像素平均灰度  
-		foregroundPixelsProportion = foregroundPixelsProportion / totalNum; // 前景部分像素点数所占比例  
+		foregroundGreylevelAvg = foregroundGreylevelSum / foregroundPixelsSum; //前景像素平均灰度  
+		foregroundProportion = foregroundPixelsSum / pixelSum; // 前景部分像素点数所占比例
 		//***********前景各分量值计算**************************  
   
 
 		//***********类间方差计算******************************  
-		double varValueI = foregroundPixelsProportion * backgroundPixelsProportion * (backgroundAvgGreylevel - foregroundAvgGreylevel) * (backgroundAvgGreylevel - foregroundAvgGreylevel); //当前类间方差计算  
+		double varValueI = foregroundProportion * backgroundProportion * pow((backgroundGreylevelAvg - foregroundGreylevelAvg),2); //当前类间方差计算  
 		if(varValue < varValueI)  
 		{  
 			varValue = varValueI;  
