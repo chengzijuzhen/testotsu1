@@ -146,8 +146,19 @@ int otsuAlgThreshold(const Mat grayImage)
 	for(int i=0; i<255; i++)  
 	{  
 		Histogram1[i] = Histogram1[i] % 200;  
-		line(image1, Point(i, 235), Point(i, 235-Histogram1[i]), Scalar(255, 0, 0), 1, 8, 0);   
+		line(image1, Point(i, 235), Point(i, 235-Histogram1[i]), Scalar(255, 0, 0), 1, 8, 0); 
+		/*
+		line()函数：
+		第一个参数img：要划的线所在的图像;
+		第二个参数pt1：直线起点;
+		第二个参数pt2：直线终点;
+		第三个参数color：直线的颜色 e.g:Scalor(0,0,255);
+		第四个参数thickness=1：线条粗细;
+		第五个参数line_type=8,8 (or 0) - 8-connected line（8邻接)连接线,4 - 4-connected line(4邻接)连接线。CV_AA - antialiased 线条。
+		第六个参数：坐标点的小数点位数。
+		*/
 
+		//给图像x轴添加数字标注：0，50，100，150...
 		if(i % 50 == 0)  
 		{  
 			char ch[255];  
@@ -201,6 +212,8 @@ int otsuAlgThreshold(const Mat grayImage)
 
 		//***********类间方差计算******************************  
 		double varValueI = foregroundProportion * backgroundProportion * pow((backgroundGreylevelAvg - foregroundGreylevelAvg),2); //当前类间方差计算  
+		
+		//采用遍历的方法得到使类间方差g最大的阈值T,即为所求。
 		if(varValue < varValueI)  
 		{  
 			varValue = varValueI;  
