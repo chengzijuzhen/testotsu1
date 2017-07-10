@@ -169,7 +169,7 @@ int otsuAlgThreshold(const Mat grayImage)
 	}  
 	//***********画出图像直方图********************************  
   
-	for(int i=0; i<255; i++)  
+	for(int i=0; i<=256; i++)  
 	{  
 		//每次遍历之前初始化各变量  
 		backgroundPixelsSum = 0;  		      
@@ -194,7 +194,7 @@ int otsuAlgThreshold(const Mat grayImage)
 
   
 		//***********前景各分量值计算**************************  
-		for(int k=i+1; k<255; k++)  
+		for(int k=i+1; k<256; k++)  
 		{  
 			foregroundPixelsSum += Histogram[k];  //前景部分像素点总数  
 			foregroundGreylevelSum += k * Histogram[k]; //前景部分像素总灰度和  
