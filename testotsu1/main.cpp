@@ -40,19 +40,16 @@ int main()
 
 	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //对两次分离颅骨的阈值取平均值
 	cout<<"阈值4(分离颅骨)为："<<thresholdValue4<<endl;
-	
-	image=deleteBone(image,130);//去出颅骨
-	imshow("去除颅骨",image);
-
+		
 	int thresholdValue5=OSTU_Alg_Threshold(image,0,thresholdValue1); //分离出脑脊液
 	cout<<"阈值5为："<<thresholdValue5<<endl;
 
-	int thresholdValue6=OSTU_Alg_Threshold(image,thresholdValue5,(thresholdValue5+thresholdValue1)/2); //对分离出脑脊液进行一次迭代优化
-	cout<<"阈值6为："<<thresholdValue6<<endl;
-
-	Imagine_Convert(image,thresholdValue5,thresholdValue6);//将脑脊液部分的像素点灰度置255(白)
-	imshow("脑脊液",image);
-	  
+	Mat image1=deleteBone(image,thresholdValue2);//去出颅骨，此时选用的是初次分离颅骨的阈值
+	imshow("去除颅骨",image1);
+	
+	Imagine_Convert(image1,0,thresholdValue5);//将脑脊液部分的像素点灰度置255(白)
+	imshow("脑脊液",image1);
+		
 	Imagine_Convert(image_LUGU,thresholdValue4,255);//将颅骨部分的像素点灰度置255(白)
 	imshow("颅骨",image_LUGU);	
 
@@ -63,8 +60,6 @@ int main()
 	system("pause");
 	return 0;
 }
-
-
 
 int OSTU_Alg_Threshold(const Mat image,int value1,int value2)
 { 
