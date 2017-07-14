@@ -167,7 +167,6 @@ Mat deleteBone(const Mat image,int threshold)
 			}			
 		}	
 	}
-
 	
 	//同理，再次遍历图像，找到每一行中最后一个属于颅骨的像素点，将该点后面的所有点置为0。
 	//即将图像的右半部分颅骨及颅骨以外区域置为0
@@ -183,16 +182,27 @@ Mat deleteBone(const Mat image,int threshold)
 			}			
 		}	
 	}
-
-	//去除颅骨上面的头皮。
+	
+	//去除头皮及图像上下半部分的非0背景。
 	for(int n=0;n<image.rows;n++)
 	{
-		for(int m=image.cols;m>=0;m--)
+		for(int m=0;m<image.cols;m++)
 		{
 			if(boneFlag[n][m]!=1) 
 				data[n*image.step+m]=0;
 			else
-				return image;
+			{
+				for(int n=image.rows-1;n>=0;n--)
+				{
+					for(int m=0;m<image.cols;m++)
+					{
+						if(boneFlag[n][m]!=1) 
+							data[n*image.step+m]=0;	
+						else
+						  return image;
+					}
+				}			
+			}				
 		}	
 	}	
 }
