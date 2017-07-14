@@ -41,7 +41,7 @@ int main()
 	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //对两次分离颅骨的阈值取平均值
 	cout<<"阈值4(分离颅骨)为："<<thresholdValue4<<endl;
 	
-	image=deleteBone(image,thresholdValue4);//去出颅骨
+	image=deleteBone(image,130);//去出颅骨
 	imshow("去除颅骨",image);
 
 	int thresholdValue5=OSTU_Alg_Threshold(image,0,thresholdValue1); //分离出脑脊液
@@ -142,30 +142,62 @@ int Imagine_Convert(const Mat image,int value1,int value2)
 Mat deleteBone(const Mat image,int threshold)
 {
 	uchar*data=image.data;
-	int boneFlag[65536]={0};
+	int boneFlag[256][256]={0};
 
-	//对图片image中颅骨部分的灰度值置0，即去除颅骨，将其变成背景
-	for(int i=0;i<=image.rows*image.cols;i++)
+	//对图像中颅骨部分的灰度值置0，即去除颅骨，将其变成背景
+	for(int i=0; i<image.rows; i++)
 	{
-		if(data[i]>= threshold) 
+		for(int j=0; j<image.cols; j++)
 		{
-			data[i]=0;
-			boneFlag[i]=1;//颅骨标记
+			if(data[i*image.step+j]>= threshold) //根据阈值，该灰度值属于颅骨区域
+			{
+				data[i*image.step+j] = 0;
+				boneFlag[i][j] = 1;//颅骨标记
+
+			}
 		}		
 	}
 
+	//再次遍历图像，找到每一行中第一个属于颅骨的像素点，将该点前面的所有点置为0。
+	//即将图像的左半部分颅骨及颅骨以外区域置为0
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=0;m<image.cols;m++)
 		{
-			if((data[n*image.step+m]==0)&&boneFlag[n*image.step+m]==1) 
+			if(data[n*image.step+m]==0 && boneFlag[n][m]==1) 
 			{
 				for(int k=0;k<m;k++)
-					data[n*image.step+m]=0;
-				for(int g=m;g<=255;g++)
-					data[n*image.step+m]=0;
+					data[n*image.step+k]=0;
+				break;//将第一个属于颅骨的像素点前面的所有点置为0后，跳转下一行。
 			}			
-		}
+		}	
 	}
-	return image;
+
+	
+	//同理，再次遍历图像，找到每一行中最后一个属于颅骨的像素点，将该点后面的所有点置为0。
+	//即将图像的右半部分颅骨及颅骨以外区域置为0
+	for(int n=0;n<image.rows;n++)
+	{
+		for(int m=image.cols;m>=0;m--)
+		{
+			if(data[n*image.step+m]==0 && boneFlag[n][m]==1) 
+			{
+				for(int k=image.cols;k>m;k--)
+					data[n*image.step+k]=0;
+				break;//将最后一个属于颅骨的像素点后面的所有点置为0后，跳转下一行。
+			}			
+		}	
+	}
+
+	//去除颅骨上面的头皮。
+	for(int n=0;n<image.rows;n++)
+	{
+		for(int m=image.cols;m>=0;m--)
+		{
+			if(boneFlag[n][m]!=1) 
+				data[n*image.step+m]=0;
+			else
+				return image;
+		}	
+	}	
 }
