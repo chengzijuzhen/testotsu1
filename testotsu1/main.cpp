@@ -1,202 +1,171 @@
+#include <opencv2/highgui/highgui.hpp>    
+#include <opencv2/imgproc/imgproc.hpp>    
+#include <opencv2/core/core.hpp>   
 #include <iostream> 
-#include <opencv2/core/core.hpp> 
-#include <opencv2/highgui/highgui.hpp> 
-#include <opencv2/imgproc/imgproc.hpp>  
-using namespace cv;   
-using namespace std;  
 
-int otsualgthreshold1(const Mat image); 
-int * mark(const Mat image,int thresholdvalue);
-int otsualgthreshold2(const Mat image,int value[],int thresholdvalue); 
+using namespace cv;  
+using namespace std;
 
-int main() 
-{ 
-    Mat image=imread("image030.jpg");//读入一张图片，mat是一种基本图像容器
-    imshow("原图",image);   //在窗口中显示图像
- 
-    //判断图像是否加载成功
-    if(!image.data)
-    {
-        cout << "图像加载失败!" << endl;
-        return false;
-    }
-    else
-        cout << "图像加载成功!" << endl;
+int OSTU_Alg_Threshold(const Mat image,int value1,int value2);//对图片image中灰度值在value1-value2之间的像素点进行求阈值运算
+int Imagine_Convert(const Mat image,int value1,int value2);//对图片image中灰度值在value1-value2之间的像素点灰度置为255(白)，其他像素点均置0(黑)
+Mat deleteBone(const Mat image,int threshold);//去出颅骨
 
-	Mat grayimage;//灰度图
-	Mat imageoutput;   
-    cvtColor(image,grayimage, CV_RGB2GRAY);//将图像转换为灰度图，采用cv_前缀
-    imshow("灰度图",grayimage);   //窗口中显示图像
+int main()
+{
+	Mat image=imread("image030.jpg");
+	if(!image.data)
+	{
+		cout<<"读入图片失败！"<<endl;
+		return -1;
+	}
+	imshow("原图",image);
 
-    int thresholdvalue1=otsualgthreshold1(grayimage); //通过大津算法求得阈值
+	Mat image_LUGU;  //定义颅骨
+	Mat image_NSZ;   //定义脑实质
+	Mat image_NJY;   //定义脊液
 
-	int thresholdvalue2=otsualgthreshold2(grayimage,mark(grayimage,thresholdvalue1),thresholdvalue1); 
-	threshold(grayimage,imageoutput,thresholdvalue2,255,CV_THRESH_BINARY); //当前点值大于阈值时，取255，否则设置为0;
-	imshow("otsu2",imageoutput);  
+	cvtColor(image,image_LUGU,CV_RGB2GRAY);  //转换为单通道灰度图,初始化image_LUGU
+	cvtColor(image,image_NSZ,CV_RGB2GRAY);  //转换为单通道灰度图,image_NSZ
+	cvtColor(image,image_NJY,CV_RGB2GRAY);  //转换为单通道灰度图,image_NJY
+	cvtColor(image,image,CV_RGB2GRAY);  //转换为单通道灰度图
 
-	int thresholdvalue3=otsualgthreshold2(grayimage,mark(grayimage,thresholdvalue2),thresholdvalue2); 
-	threshold(grayimage,imageoutput,thresholdvalue3,255,CV_THRESH_BINARY); //当前点值大于阈值时，取255，否则设置为0;
-	imshow("otsu3",imageoutput);  
+	int thresholdValue1=OSTU_Alg_Threshold(image,0,255);  //分离出前景(脑实质+颅骨)与背景(脑脊液+图片背景)
+	cout<<"阈值1(分离出前景(脑实质+颅骨)与背景(脑脊液+图片背景))为："<<thresholdValue1<<endl;
 
-	threshold(grayimage,imageoutput,(thresholdvalue2+thresholdvalue3)/2,255,CV_THRESH_BINARY); //当前点值大于阈值时，取255，否则设置为0;
-	imshow("otsu4",imageoutput);  
+	int thresholdValue2=OSTU_Alg_Threshold(image,thresholdValue1,255);  //初次分离出颅骨
+	cout<<"阈值2为："<<thresholdValue2<<endl;
 
-    waitKey();  
-    return 0;  
+	int thresholdValue3=OSTU_Alg_Threshold(image,thresholdValue2,255);  //对分离出颅骨进行一次迭代优化
+	cout<<"阈值3为："<<thresholdValue3<<endl;
+
+	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //对两次分离颅骨的阈值取平均值
+	cout<<"阈值4(分离颅骨)为："<<thresholdValue4<<endl;
+	
+	image=deleteBone(image,thresholdValue4);//去出颅骨
+	imshow("去除颅骨",image);
+
+	int thresholdValue5=OSTU_Alg_Threshold(image,0,thresholdValue1); //分离出脑脊液
+	cout<<"阈值5为："<<thresholdValue5<<endl;
+
+	int thresholdValue6=OSTU_Alg_Threshold(image,thresholdValue5,(thresholdValue5+thresholdValue1)/2); //对分离出脑脊液进行一次迭代优化
+	cout<<"阈值6为："<<thresholdValue6<<endl;
+
+	Imagine_Convert(image,thresholdValue5,thresholdValue6);//将脑脊液部分的像素点灰度置255(白)
+	imshow("脑脊液",image);
+	  
+	Imagine_Convert(image_LUGU,thresholdValue4,255);//将颅骨部分的像素点灰度置255(白)
+	imshow("颅骨",image_LUGU);	
+
+	Imagine_Convert(image_NSZ,65,90);//将脑实质部分的像素点灰度置255(白)
+	imshow("脑实质",image_NSZ);
+
+	waitKey();
+	system("pause");
+	return 0;
 }
-  
-int otsualgthreshold1(const Mat grayimage)  
-{  
-	double grayvalue[256] = {0}; //下标是灰度值，保存内容是灰度值对应的像素点总数  
 
-	int t=0; //otsu算法阈值
-	double gtemp=0; //类间方差中间值 
 
-	double fn = 0; //前景像素点数 
-	double bn = 0; //背景像素点数 
 
-	double fp = 0; //前景像素点数所占比例  
-	double bp = 0; //背景像素点数所占比例
-
-	double ft = 0; //前景灰度总和  
-	double bt = 0; //背景灰度总和  
-
-	double fa = 0; //前景平均灰度  
-	double ba = 0; //背景平均灰度  
-
-	uchar *data = grayimage.data; //指向图像矩阵数据的指针
-	
-	double pixelsum = grayimage.rows * grayimage.cols; //像素总数 
- 
-	for(int i=0; i<grayimage.rows; i++) 
-	{  
-		for(int j=0; j<grayimage.cols; j++)  
-			grayvalue[data[i * grayimage.step + j]]++; 			
-	}  
-
-	for(int i=0; i<256; i++)  
-	{  
-		//每次遍历之前初始化各变量  
-		bt = 0;  		      
-		ft = 0;
-		bn = 0; 
-		fn = 0; 
-
-		for(int j=0;j<=i;j++) //背景部分各值计算  
-		{  
-			bn += grayvalue[j];  //背景部分像素点总数  
-			bt += j * grayvalue[j]; //背景部分像素总灰度和  
-		}  
-				
-		ba = bt/bn; //背景像素平均灰度  
-		bp = bn/pixelsum; // 背景部分像素点数所占比例 
-
-		for(int k=i+1; k<256; k++)  
-		{  
-			fn += grayvalue[k];  //前景部分像素点总数  
-			ft += k * grayvalue[k]; //前景部分像素总灰度和  
-		} 
-
-		fa = ft / fn; //前景像素平均灰度  
-		fp = fn / pixelsum; // 前景部分像素点数所占比例
-
-		double g = fp * bp * (fa - ba)*(fa - ba); //当前类间方差计算  
-	
-		//采用遍历的方法得到使类间方差g最大的阈值t,即为所求。
-		if(gtemp < g)  
-		{  
-			gtemp = g;  
-			t=i;  
-		}  
+int OSTU_Alg_Threshold(const Mat image,int value1,int value2)
+{ 
+	if(image.channels()!=1)
+	{
+		cout<<"please input Cray-image!"<<endl;  //不是单通道灰度图退出 
+		return -1;
 	}
-	cout<<"t1: "<<t<<endl;  
-	return t;  
-} 
-
-
-int otsualgthreshold2(const Mat grayimage, int value[], int thresholdvalue)  
-{  
-	double grayvalue[256] = {0}; //下标是灰度值，保存内容是灰度值对应的像素点总数  
-
-	int t = 0; //otsu算法阈值
-	double gtemp = 0; //类间方差中间值
-
-	double fn = 0; //前景像素点数 
-	double bn = 0; //背景像素点数 
-
-	double fp = 0; //前景像素点数所占比例  
-	double bp = 0; //背景像素点数所占比例
-
-	double ft = 0; //前景灰度总和  
-	double bt = 0; //背景灰度总和  
-
-	double fa = 0; //前景平均灰度  
-	double ba = 0; //背景平均灰度  
-
-	uchar *data = grayimage.data; 
-	int pixelsum=0; //像素总数 
-
-	for(int i=0; i<grayimage.rows; i++)   
-	{  
-		for(int j=0; j<grayimage.cols; j++)  
-		{  
-			if(value[i*grayimage.step+j]==1)
-			{
-				grayvalue[data[i * grayimage.step + j]]++;
-				pixelsum++;
-			}	
-		}  
-	}  
-
-	for(int i=thresholdvalue; i<256; i++)  
-	{  
-		//每次遍历之前初始化各变量  
-		bt = 0;  		      
-		ft = 0;
-		bn = 0; 
-		fn = 0; 
-
-		for(int j=thresholdvalue;j<=i;j++) //背景部分各值计算  
-		{  
-			bn += grayvalue[j];  //背景部分像素点总数  
-			bt += j * grayvalue[j]; //背景部分像素总灰度和  
-		}  
-			
-		ba = bt/bn; //背景像素平均灰度  
-		bp = bn/pixelsum; //背景部分像素点数所占比例 
-		
-		for(int k=i+1; k<256; k++)  
-		{  
-			fn += grayvalue[k];  //前景部分像素点总数  
-			ft += k * grayvalue[k]; //前景部分像素总灰度和  
-		} 
-			
-		fa = ft/fn;//前景像素平均灰度  
-		fp = fn/pixelsum;//前景部分像素点数所占比例
-		  
-		double g = fp * bp * (fa - ba)*(fa - ba); //当前类间方差计算  
-		
-		//采用遍历的方法得到使类间方差g最大的阈值t,即为所求。
-		if(gtemp < g)  
-		{  
-			gtemp = g;  
-			t=i;  
-		}  
-	}
-	cout<<"t2: "<<t<<endl;  
-	return t;  
-} 
-
-int* mark(const Mat image,int thresholdvalue)
-{  
-	uchar *data = image.data;
-	int value[65536] = {0};
-	for(int i=0; i<=image.rows*image.cols; i++)
-    {
-		if(data[i]>=thresholdvalue)
+	int HUIDU[256]={0};
+	double N=0;  //像素点数
+	int T=0;  //初始化阈值
+	double g1=0;
+	uchar*data=image.data;
+	for(int i=0;i<image.rows;i++)
+	{
+		for(int j=0;j<image.cols;j++)
 		{
-			value[i]=1;			
+			if((data[i*image.step+j]>value1)&&(data[i*image.step+j]<=value2)) 
+			{
+				HUIDU[data[i*image.step+j]]++;  
+				N++;
+			}
 		}
-    }
-	return value;
+	}
+	for(int k=value1;k<=value2;k++)
+	{
+		int N0=0;     //前景数
+		int N1=0;     //背景数
+		double w0=0;  //前景比例
+		double w1=0;  //背景比例
+		double u0=0;  //前景平均灰度
+		double u1=0;  //背景平均灰度
+		double h0=0;  //前景总灰度
+		double h1=0;  //背景总灰度
+		for(int m=0;m<=k;m++)
+		{
+			N1=N1+HUIDU[m];
+			h1=h1+m*HUIDU[m];
+		}
+		for(int n=k+1;n<=value2;n++)
+		{
+			N0=N0+HUIDU[n];
+			h0=h0+n*HUIDU[n];
+		}
+		w1=N1/N;
+		w0=N0/N;
+		u1=h1/N1;
+		u0=h0/N0;
+		double g=w1*w0*(u0-u1)*(u0-u1);
+		if(g>g1)
+		{
+		    g1=g;
+			T=k;
+		}
+	}
+	return(T);
+}
+int Imagine_Convert(const Mat image,int value1,int value2)
+{
+	uchar*data=image.data;
+	for(int i=0;i<=image.rows*image.cols;i++)
+	{
+		if(data[i]<=value1||data[i]>value2) //对图片image中灰度值在value1-value2之间的像素点灰度置为255(白)，其他像素点均置0(黑)
+		{
+			data[i]=0;
+		}
+		else
+		{ 
+			data[i]=255;
+		}
+	}
+	return 0;
+}
+
+Mat deleteBone(const Mat image,int threshold)
+{
+	uchar*data=image.data;
+	int boneFlag[65536]={0};
+
+	//对图片image中颅骨部分的灰度值置0，即去除颅骨，将其变成背景
+	for(int i=0;i<=image.rows*image.cols;i++)
+	{
+		if(data[i]>= threshold) 
+		{
+			data[i]=0;
+			boneFlag[i]=1;//颅骨标记
+		}		
+	}
+
+	for(int n=0;n<image.rows;n++)
+	{
+		for(int m=0;m<image.cols;m++)
+		{
+			if((data[n*image.step+m]==0)&&boneFlag[n*image.step+m]==1) 
+			{
+				for(int k=0;k<m;k++)
+					data[n*image.step+m]=0;
+				for(int g=m;g<=255;g++)
+					data[n*image.step+m]=0;
+			}			
+		}
+	}
+	return image;
 }
