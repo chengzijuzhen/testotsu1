@@ -3,13 +3,14 @@
 #include <opencv2/core/core.hpp>   
 #include <iostream> 
 
+#define NULL 0
+
 using namespace cv;  
 using namespace std;
 
 int OSTU_Alg_Threshold(const Mat image,int value1,int value2);//对图片image中灰度值在value1-value2之间的像素点进行求阈值运算
 int Imagine_Convert(const Mat image,int value1,int value2);//对图片image中灰度值在value1-value2之间的像素点灰度置为255(白)，其他像素点均置0(黑)
-Mat deleteBone(const Mat image,int threshold);//去除颅骨区域及以外部分
-Mat deleteNJY(const Mat image,const Mat markImage,int threshold);//去除脑脊液区域及以外部分
+Mat deleteOutside(const Mat image,const Mat markImage,int threshold);//去除目标区域及以外部分
 
 int main()
 {
@@ -22,7 +23,9 @@ int main()
 	imshow("原图",image);
 	cvtColor(image,image,CV_RGB2GRAY);  //转换为单通道灰度图
 
-	Mat copy;
+	Mat copy1;
+	Mat copy2;
+	Mat copyLG;
 	Mat copyNJY;
 
 	int thresholdValue1=OSTU_Alg_Threshold(image,0,255);  //分离出前景(脑实质+颅骨)与背景(脑脊液+图片背景)
@@ -44,20 +47,30 @@ int main()
 
 	int thresholdValue8=(thresholdValue1+thresholdValue2)/2; 
 	cout<<"阈值8(分割出脑实质)为："<<thresholdValue8<<endl;
+	//---------------------分割颅骨------------------------------
+	image.copyTo(copy1);//备份原始图像，用来去颅骨
+	Imagine_Convert(copy1,thresholdValue4,255);
+	imshow("颅骨",copy1);
 
-	Mat img_deleteBone=deleteBone(image,thresholdValue2);//去出颅骨及以外部分，此时选用的是初次分离颅骨的阈值
-	imshow("去除颅骨",img_deleteBone);
+	image.copyTo(copyLG);
+	Imagine_Convert(copyLG,thresholdValue2,255);
+	//---------------------去除颅骨及以外部分--------------------
+	Mat img_deleteBone=deleteOutside(image,copyLG,thresholdValue2);//去除颅骨及以外部分，此时选用的是初次分离颅骨的阈值
+	imshow("原图去除颅骨",img_deleteBone);
 
-	image.copyTo(copy);//备份原始图像
-	img_deleteBone.copyTo(copyNJY);//备份去出颅骨及以外部分后的图像
+	//----------------------分割脑脊液---------------------------
+	image.copyTo(copy2);//备份原始图像
+	img_deleteBone.copyTo(copyNJY);//备份去除颅骨及以外部分后的图像
 
 	Imagine_Convert(img_deleteBone,0,thresholdValue5);//将脑脊液部分的像素点灰度置255(白)	
 	imshow("脑脊液",img_deleteBone);
-;
+
+	//---------------------去除脑脊液及以外部分------------------
 	Imagine_Convert(copyNJY,0,27);//使用脑脊液备份图像，mark脑脊液像数点位置，原阈值为17，现在27为经验值
-	Mat img_deleteNJY=deleteNJY(copy,copyNJY,255);//去出脑脊液及以外部分
-	imshow("去除脑脊液",img_deleteNJY);
-	
+	Mat img_deleteNJY=deleteOutside(copy2,copyNJY,255);//去除脑脊液及以外部分
+	imshow("原图去除脑脊液",img_deleteNJY);
+
+	//-----------------------分割脑实质--------------------------
 	Imagine_Convert(img_deleteNJY,thresholdValue7-5,thresholdValue8);//将脑实质部分的像素点灰度置255(白)
 	imshow("脑实质",img_deleteNJY);
 
@@ -139,87 +152,14 @@ int Imagine_Convert(const Mat image,int value1,int value2)
 	return 0;
 }
 
-//去除颅骨区域及以外部分
-Mat deleteBone(const Mat image,int threshold)
+
+//去除目标区域及以外部分
+Mat deleteOutside(const Mat image,const Mat markImage,int threshold)
 {
-	uchar*data=image.data;
-	int flag[256][256]={0};
-
-	//对图像中目标区域的灰度值置0，即去除目标区域，将其变成背景
-	for(int i=0; i<image.rows; i++)
-	{
-		for(int j=0; j<image.cols; j++)
-		{
-			if(data[i*image.step+j]>= threshold) //灰度值大于等于阈值，属于目标区域
-			{
-				data[i*image.step+j] = 0;
-				flag[i][j] = 1;//标记成目标区域
-			}
-		}			
-	}
-	
-	//再次遍历图像，找到每一行中第一个属于颅骨的像素点，将该点前面的所有点置为0。
-	//即将图像的左半部分颅骨及颅骨以外区域置为0
-	for(int n=0;n<image.rows;n++)
-	{
-		for(int m=0;m<image.cols;m++)
-		{
-			if(data[n*image.step+m]==0 && flag[n][m]==1) 
-			{
-				for(int k=0;k<m;k++)
-					data[n*image.step+k]=0;
-				break;//将第一个属于颅骨的像素点前面的所有点置为0后，跳转下一行。
-			}			
-		}	
-	}
-	
-	//同理，再次遍历图像，找到每一行中最后一个属于颅骨的像素点，将该点后面的所有点置为0。
-	//即将图像的右半部分颅骨及颅骨以外区域置为0
-	for(int n=0;n<image.rows;n++)
-	{
-		for(int m=image.cols;m>=0;m--)
-		{
-			if(data[n*image.step+m]==0 && flag[n][m]==1) 
-			{
-				for(int k=image.cols;k>m;k--)
-					data[n*image.step+k]=0;
-				break;//将最后一个属于颅骨的像素点后面的所有点置为0后，跳转下一行。
-			}			
-		}	
-	}
-	
-	//去除头皮及图像上下半部分的非0背景。
-	for(int n=0;n<image.rows;n++)
-	{
-		for(int m=0;m<image.cols;m++)
-		{
-			if(flag[n][m]!=1) 
-				data[n*image.step+m]=0;
-			else
-			{
-				for(int n=image.rows-1;n>=0;n--)
-				{
-					for(int m=0;m<image.cols;m++)
-					{
-						if(flag[n][m]!=1) 
-							data[n*image.step+m]=0;	
-						else
-							return image;
-					}
-				}			
-			}				
-		}	
-	}
-	return image;
-}
-
-//去除脑脊液区域及以外部分
-Mat deleteNJY(const Mat image,const Mat markImage,int threshold)
-{
-	uchar*markImageData=markImage.data;//提取脑脊液后的图像，用来标记脑脊液区域
-	uchar*data=image.data;//待处理图片
-	int flag[256][256]={0};
-
+	uchar*data = image.data;//待处理图片
+	uchar*markImageData = markImage.data;//提取目标区域后的图像，用来标记目标区域
+	int flag[256][256]={0};//标记矩阵
+			
 	//对图像中目标区域的灰度值置0，即去除目标区域，将其变成背景
 	for(int i=0; i<image.rows; i++)
 	{
@@ -231,10 +171,10 @@ Mat deleteNJY(const Mat image,const Mat markImage,int threshold)
 				flag[i][j] = 1;//标记成目标区域
 			}
 		}			
-	}
-
-	//再次遍历图像，找到每一行中第一个属于颅骨的像素点，将该点前面的所有点置为0。
-	//即将图像的左半部分颅骨及颅骨以外区域置为0
+	}	
+		
+	//再次遍历图像，找到每一行中第一个属于目标区域的像素点，将该点前面的所有点置为0。
+	//即将图像的左半部分目标区域及目标区域以外区域置为0
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=0;m<image.cols;m++)
@@ -243,13 +183,13 @@ Mat deleteNJY(const Mat image,const Mat markImage,int threshold)
 			{
 				for(int k=0;k<m;k++)
 					data[n*image.step+k]=0;
-				break;//将第一个属于颅骨的像素点前面的所有点置为0后，跳转下一行。
+				break;//将第一个属于目标区域的像素点前面的所有点置为0后，跳转下一行。
 			}			
 		}	
 	}
 	
-	//同理，再次遍历图像，找到每一行中最后一个属于颅骨的像素点，将该点后面的所有点置为0。
-	//即将图像的右半部分颅骨及颅骨以外区域置为0
+	//同理，再次遍历图像，找到每一行中最后一个属于目标区域的像素点，将该点后面的所有点置为0。
+	//即将图像的右半部分目标区域及目标区域以外区域置为0
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=image.cols;m>=0;m--)
@@ -258,12 +198,12 @@ Mat deleteNJY(const Mat image,const Mat markImage,int threshold)
 			{
 				for(int k=image.cols;k>m;k--)
 					data[n*image.step+k]=0;
-				break;//将最后一个属于颅骨的像素点后面的所有点置为0后，跳转下一行。
+				break;//将最后一个属于目标区域的像素点后面的所有点置为0后，跳转下一行。
 			}			
 		}	
 	}
 	
-	//去除头皮及图像上下半部分的非0背景。
+	//去除图像上下半部分的非0背景。
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=0;m<image.cols;m++)
