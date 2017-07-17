@@ -34,24 +34,31 @@ int main()
 	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //对两次分离颅骨的阈值取平均值
 	cout<<"阈值4(分割颅骨)为："<<thresholdValue4<<endl;
 		
-	int thresholdValue5=OSTU_Alg_Threshold(image,0,thresholdValue1); //分离出脑脊液
+	int thresholdValue5=OSTU_Alg_Threshold(image,0,thresholdValue1); 
 	cout<<"阈值5为(分割脑脊液)："<<thresholdValue5<<endl;
+
+	int thresholdValue6=OSTU_Alg_Threshold(image,thresholdValue1,(thresholdValue1+thresholdValue2)/2); 
+
+	int thresholdValue7=(thresholdValue1+thresholdValue6)/2; 
+	cout<<"阈值7(分割出脑实质)为："<<thresholdValue7<<endl;
+
+	int thresholdValue8=(thresholdValue1+thresholdValue2)/2; 
+	cout<<"阈值8(分割出脑实质)为："<<thresholdValue8<<endl;
 
 	Mat img_deleteBone=deleteBone(image,thresholdValue2);//去出颅骨及以外部分，此时选用的是初次分离颅骨的阈值
 	imshow("去除颅骨",img_deleteBone);
 
-	image.copyTo(copy);
-	img_deleteBone.copyTo(copyNJY);
+	image.copyTo(copy);//备份原始图像
+	img_deleteBone.copyTo(copyNJY);//备份去出颅骨及以外部分后的图像
 
 	Imagine_Convert(img_deleteBone,0,thresholdValue5);//将脑脊液部分的像素点灰度置255(白)	
 	imshow("脑脊液",img_deleteBone);
-
-	imshow("图片备份",copy);
-	Imagine_Convert(copyNJY,0,27);//将脑脊液部分的像素点灰度置255(白)
-	Mat img_deleteNJY=deleteNJY(copy,copyNJY,255);//去出脑脊液及以外部分，此时选用的是初次分离颅骨的阈值
+;
+	Imagine_Convert(copyNJY,0,27);//使用脑脊液备份图像，mark脑脊液像数点位置，原阈值为17，现在27为经验值
+	Mat img_deleteNJY=deleteNJY(copy,copyNJY,255);//去出脑脊液及以外部分
 	imshow("去除脑脊液",img_deleteNJY);
 	
-	Imagine_Convert(img_deleteNJY,65,90);//将脑实质部分的像素点灰度置255(白)
+	Imagine_Convert(img_deleteNJY,thresholdValue7-5,thresholdValue8);//将脑实质部分的像素点灰度置255(白)
 	imshow("脑实质",img_deleteNJY);
 
 	waitKey();
