@@ -12,6 +12,7 @@ int OSTU_Alg_Threshold(const Mat image,int value1,int value2);//¶ÔÍ¼Æ¬imageÖĞ»Ò¶
 int Imagine_Convert(const Mat image,int value1,int value2);//¶ÔÍ¼Æ¬imageÖĞ»Ò¶ÈÖµÔÚvalue1-value2Ö®¼äµÄÏñËØµã»Ò¶ÈÖÃÎª255(°×)£¬ÆäËûÏñËØµã¾ùÖÃ0(ºÚ)
 Mat deleteOutside(const Mat image,const Mat markImage,int threshold);//È¥³ıÄ¿±êÇøÓò¼°ÒÔÍâ²¿·Ö
 int deleteNS(const Mat markImage);//¶ÔÓÚÌáÈ¡³öµÄÄÔ¼¹Òº£¬³ıÈ¥¶àÓàµÄÄÔÊÒ²¿·Ö
+int count(const Mat image); //ÓÃÓÚ¼ÆËãÒ»ÕÅÍ¼Æ¬µÄ¸ßÁÁÏñËØµã¸öÊı
 
 int main()
 {
@@ -63,6 +64,8 @@ int main()
 	Imagine_Convert(img_deleteBone,0,thresholdValue5);//½«ÄÔ¼¹Òº²¿·ÖµÄÏñËØµã»Ò¶ÈÖÃ255(°×)
 	deleteNS(img_deleteBone);//È¥³ıÄÔÊÒ
 	imshow("ÄÔ¼¹Òº",img_deleteBone);
+	double numberNJY = count(img_deleteBone);
+	cout<<"ÄÔ¼¹ÒºÏñËØµã¸öÊıÎª£º"<<numberNJY<<endl;
 
 	//---------------------È¥³ıÄÔ¼¹Òº¼°ÒÔÍâ²¿·Ö------------------
 	Mat img_deleteNJY=deleteOutside(copyNJY,img_deleteBone,255);//È¥³ıÄÔ¼¹Òº¼°ÒÔÍâ²¿·Ö
@@ -71,7 +74,13 @@ int main()
 	//-----------------------·Ö¸îÄÔÊµÖÊ--------------------------
 	Imagine_Convert(img_deleteNJY,thresholdValue7-5,thresholdValue8);//½«ÄÔÊµÖÊ²¿·ÖµÄÏñËØµã»Ò¶ÈÖÃ255(°×)
 	imshow("ÄÔÊµÖÊ",img_deleteNJY);
+	double numberNSZ = count(img_deleteNJY);
+	cout<<"ÄÔÊµÖÊÏñËØµã¸öÊıÎª£º"<<numberNSZ<<endl;
 
+	double num=(numberNJY+numberNSZ)/65530*81;//S¾Ö=N¾Ö/N×Ü*S×Ü£¬ÕâÀïÓÃµ½µÄÊÇÕâ¸ö¹«Ê½£¬S×ÜÊÇ¸ÃÍ¼Æ¬µÄ×ÜÃæ»ı£¬ÓÉÓÚ¸ÃÍ¼Æ¬ÊÇ°´±ÈÀıËõĞ¡µÄ£¬ËùÒÔÏÈ¼ÆËã³ö½á¹û£¬ÔÙ°´±ÈÀı»¹Ô­¡£
+	//double ss=num;
+	cout<<"ÄÔÊµÖÊ+ÄÔ¼¹ÒºÃæ»ı£¨¸ÃÍ¼Æ¬ÖĞµÄÃæ»ı£©Îª£º"<<num<<endl;
+	
 	waitKey();
 	system("pause");
 	return 0;
@@ -240,3 +249,11 @@ Mat deleteOutside(const Mat image,const Mat markImage,int threshold)
 	return image;
 }
 
+int count(const Mat image){
+	uchar*data=image.data;
+	int sum =0;
+	for(int i=0;i<=image.rows*image.cols;i++)
+		if(data[i]== 255)
+			sum++;
+	return sum;
+}
