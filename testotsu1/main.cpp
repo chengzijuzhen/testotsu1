@@ -1,85 +1,112 @@
-#include <opencv2/highgui/highgui.hpp>    
+ï»¿#include <opencv2/highgui/highgui.hpp>    
 #include <opencv2/imgproc/imgproc.hpp>    
 #include <opencv2/core/core.hpp>   
 #include <iostream> 
 
-#define NULL 0
-
 using namespace cv;  
 using namespace std;
 
-int OSTU_Alg_Threshold(const Mat image,int value1,int value2);//¶ÔÍ¼Æ¬imageÖĞ»Ò¶ÈÖµÔÚvalue1-value2Ö®¼äµÄÏñËØµã½øĞĞÇóãĞÖµÔËËã
-int Imagine_Convert(const Mat image,int value1,int value2);//¶ÔÍ¼Æ¬imageÖĞ»Ò¶ÈÖµÔÚvalue1-value2Ö®¼äµÄÏñËØµã»Ò¶ÈÖÃÎª255(°×)£¬ÆäËûÏñËØµã¾ùÖÃ0(ºÚ)
-Mat deleteOutside(const Mat image,const Mat markImage,int threshold);//È¥³ıÄ¿±êÇøÓò¼°ÒÔÍâ²¿·Ö
-int deleteNS(const Mat markImage);//¶ÔÓÚÌáÈ¡³öµÄÄÔ¼¹Òº£¬³ıÈ¥¶àÓàµÄÄÔÊÒ²¿·Ö
-int count(const Mat image); //ÓÃÓÚ¼ÆËãÒ»ÕÅÍ¼Æ¬µÄ¸ßÁÁÏñËØµã¸öÊı
+int OSTU_Alg_Threshold(const Mat image,int value1,int value2);//å¯¹å›¾ç‰‡imageä¸­ç°åº¦å€¼åœ¨value1-value2ä¹‹é—´çš„åƒç´ ç‚¹è¿›è¡Œæ±‚é˜ˆå€¼è¿ç®—
+int Imagine_Convert(const Mat image,int value1,int value2);//å¯¹å›¾ç‰‡imageä¸­ç°åº¦å€¼åœ¨value1-value2ä¹‹é—´çš„åƒç´ ç‚¹ç°åº¦ç½®ä¸º255(ç™½)ï¼Œå…¶ä»–åƒç´ ç‚¹å‡ç½®0(é»‘)
+Mat deleteOutside(const Mat image,const Mat markImage,int threshold);//å»é™¤ç›®æ ‡åŒºåŸŸåŠä»¥å¤–éƒ¨åˆ†
+int deleteNS(const Mat markImage);//å¯¹äºæå–å‡ºçš„è„‘è„Šæ¶²ï¼Œé™¤å»å¤šä½™çš„è„‘å®¤éƒ¨åˆ†
+int count(const Mat image); //ç”¨äºè®¡ç®—ä¸€å¼ å›¾ç‰‡çš„é«˜äº®åƒç´ ç‚¹ä¸ªæ•°
+
+//å½¢æ€å­¦
+Mat changeToBinaryImage(Mat grayImage);//æŠŠç°åº¦å›¾åƒè½¬åŒ–ä¸ºäºŒå€¼å›¾åƒ
+Mat binaryErosion(Mat binaryImage, Mat se);//äºŒå€¼å›¾åƒè…èš€æ“ä½œ
+Mat binaryDilation(Mat binaryImage, Mat se);//äºŒå€¼å›¾åƒè†¨èƒ€æ“ä½œ
+Mat grayErosion(Mat grayImage,Mat se);//ç°åº¦å›¾åƒè…èš€æ“ä½œ
+Mat grayDilation(Mat grayImage,Mat se);//ç°åº¦å›¾åƒè†¨èƒ€æ“ä½œ
+Mat binaryOpen(Mat binaryImage, Mat se);//äºŒå€¼å›¾åƒå¼€æ“ä½œ
+Mat binaryClose(Mat binaryImage, Mat se);//äºŒå€¼å›¾åƒé—­æ“ä½œ
+Mat grayOpen(Mat grayImage, Mat se);//ç°åº¦å›¾åƒå¼€æ“ä½œ
+Mat grayClose(Mat grayImage, Mat se);//ç°åº¦å›¾åƒé—­æ“ä½œ
+Mat binaryBorder(Mat binaryImage,Mat se);//äºŒå€¼å›¾åƒè¾¹ç•Œæå–
+Mat grayBorder(Mat grayImage, Mat se);//ç°åº¦å›¾åƒè¾¹ç•Œæå–
+Mat gradient(Mat grayImage, Mat se);//ç°åº¦å›¾åƒæ¢¯åº¦
+Mat topHat(Mat grayImage,Mat se);//ç°åº¦å›¾åƒçš„é¡¶å¸½è¿ç®— Tï¼ˆfï¼‰=f-fob
+Mat bottomHat(Mat grayImage, Mat se);	//ç°åº¦å›¾åƒçš„åº•å¸½è¿ç®— Bï¼ˆfï¼‰=fâ‹…b-f
 
 int main()
 {
 	Mat image=imread("image030.jpg");
 	if(!image.data)
 	{
-		cout<<"¶ÁÈëÍ¼Æ¬Ê§°Ü£¡"<<endl;
+		cout<<"è¯»å…¥å›¾ç‰‡å¤±è´¥ï¼"<<endl;
 		return -1;
 	}
-	imshow("Ô­Í¼",image);
-	cvtColor(image,image,CV_RGB2GRAY);  //×ª»»Îªµ¥Í¨µÀ»Ò¶ÈÍ¼
+	//imshow("åŸå›¾",image);
+
+	//åˆ›å»ºæ¨¡æ¿  ä¸€èˆ¬ç»“æ„å…ƒç´ å…³äºè‡ªèº«åŸç‚¹å¯¹ç§°  
+    //ä¹Ÿå¯ä»¥è‡ªå®šä¹‰ç»“æ„å…ƒç´   ä¸‹é¢çš„å˜é‡æ˜¯3*3çš„çŸ©é˜µ å…¨éƒ¨ä¸º0  
+    Mat structureElement(2,2, CV_8UC1, Scalar(0));
+
+	//Mat element = getStructuringElement( MORPH_ELLIPSE, Size(-1,-1), Point(-1,-1) );
+
+
+	cvtColor(image,image,CV_RGB2GRAY);  //è½¬æ¢ä¸ºå•é€šé“ç°åº¦å›¾
 
 	Mat copyLG1;
 	Mat copyLG2;
 	Mat copyNJY;
-	image.copyTo(copyLG1);//±¸·İÔ­Ê¼Í¼Ïñ£¬ÓÃÀ´·Ö¸îÂ­¹Ç
-	image.copyTo(copyLG2);//±¸·İÔ­Ê¼Í¼Ïñ£¬ÓÃÀ´È¥³ıÂ­¹Ç
-	image.copyTo(copyNJY);//±¸·İÔ­Ê¼Í¼Ïñ£¬ÓÃÀ´È¥³ıÄÔ¼¹Òº
+	image.copyTo(copyLG1);//å¤‡ä»½åŸå§‹å›¾åƒï¼Œç”¨æ¥åˆ†å‰²é¢…éª¨
+	image.copyTo(copyLG2);//å¤‡ä»½åŸå§‹å›¾åƒï¼Œç”¨æ¥å»é™¤é¢…éª¨
+	image.copyTo(copyNJY);//å¤‡ä»½åŸå§‹å›¾åƒï¼Œç”¨æ¥å»é™¤è„‘è„Šæ¶²
 
-	int thresholdValue1=OSTU_Alg_Threshold(image,0,255);  //·ÖÀë³öÇ°¾°(ÄÔÊµÖÊ+Â­¹Ç)Óë±³¾°(ÄÔ¼¹Òº+Í¼Æ¬±³¾°)
-	cout<<"ãĞÖµ1(·ÖÀë³öÇ°¾°(ÄÔÊµÖÊ+Â­¹Ç)Óë±³¾°(ÄÔ¼¹Òº+Í¼Æ¬±³¾°))Îª£º"<<thresholdValue1<<endl;
+	int thresholdValue1=OSTU_Alg_Threshold(image,0,255);  //åˆ†ç¦»å‡ºå‰æ™¯(è„‘å®è´¨+é¢…éª¨)ä¸èƒŒæ™¯(è„‘è„Šæ¶²+å›¾ç‰‡èƒŒæ™¯)
+	cout<<"é˜ˆå€¼1(åˆ†ç¦»å‡ºå‰æ™¯(è„‘å®è´¨+é¢…éª¨)ä¸èƒŒæ™¯(è„‘è„Šæ¶²+å›¾ç‰‡èƒŒæ™¯))ä¸ºï¼š"<<thresholdValue1<<endl;
 
-	int thresholdValue2=OSTU_Alg_Threshold(image,thresholdValue1,255);  //³õ´Î·ÖÀë³öÂ­¹Ç
-	int thresholdValue3=OSTU_Alg_Threshold(image,thresholdValue2,255);  //¶Ô·ÖÀë³öÂ­¹Ç½øĞĞÒ»´Îµü´úÓÅ»¯
+	int thresholdValue2=OSTU_Alg_Threshold(image,thresholdValue1,255);  //åˆæ¬¡åˆ†ç¦»å‡ºé¢…éª¨
+	int thresholdValue3=OSTU_Alg_Threshold(image,thresholdValue2,255);  //å¯¹åˆ†ç¦»å‡ºé¢…éª¨è¿›è¡Œä¸€æ¬¡è¿­ä»£ä¼˜åŒ–
 
-	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //¶ÔÁ½´Î·ÖÀëÂ­¹ÇµÄãĞÖµÈ¡Æ½¾ùÖµ
-	cout<<"ãĞÖµ4(·Ö¸îÂ­¹Ç)Îª£º"<<thresholdValue4<<endl;
+	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //å¯¹ä¸¤æ¬¡åˆ†ç¦»é¢…éª¨çš„é˜ˆå€¼å–å¹³å‡å€¼
+	cout<<"é˜ˆå€¼4(åˆ†å‰²é¢…éª¨)ä¸ºï¼š"<<thresholdValue4<<endl;
 		
 	int thresholdValue5=(OSTU_Alg_Threshold(image,0,thresholdValue1)+thresholdValue1)/2; 
-	cout<<"ãĞÖµ5Îª(·Ö¸îÄÔ¼¹Òº)£º"<<thresholdValue5<<endl;
+	cout<<"é˜ˆå€¼5ä¸º(åˆ†å‰²è„‘è„Šæ¶²)ï¼š"<<thresholdValue5<<endl;
 
 	int thresholdValue6=OSTU_Alg_Threshold(image,thresholdValue1,(thresholdValue1+thresholdValue2)/2); 
 
 	int thresholdValue7=(thresholdValue1+thresholdValue6)/2; 
-	cout<<"ãĞÖµ7(·Ö¸î³öÄÔÊµÖÊ)Îª£º"<<thresholdValue7<<endl;
+	cout<<"é˜ˆå€¼7(åˆ†å‰²å‡ºè„‘å®è´¨)ä¸ºï¼š"<<thresholdValue7<<endl;
 
 	int thresholdValue8=(thresholdValue1+thresholdValue2)/2; 
-	cout<<"ãĞÖµ8(·Ö¸î³öÄÔÊµÖÊ)Îª£º"<<thresholdValue8<<endl;
-	//---------------------·Ö¸îÂ­¹Ç------------------------------
+	cout<<"é˜ˆå€¼8(åˆ†å‰²å‡ºè„‘å®è´¨)ä¸ºï¼š"<<thresholdValue8<<endl;
+	//---------------------åˆ†å‰²é¢…éª¨------------------------------
 	Imagine_Convert(copyLG1,thresholdValue4,255);
-	imshow("Â­¹Ç",copyLG1);
+	imshow("é¢…éª¨",copyLG1);
 
-	//---------------------È¥³ıÂ­¹Ç¼°ÒÔÍâ²¿·Ö--------------------
-	Imagine_Convert(copyLG2,thresholdValue2,255);//markÂ­¹ÇµÄÎ»ÖÃ	
-	Mat img_deleteBone=deleteOutside(image,copyLG2,thresholdValue2);//È¥³ıÂ­¹Ç¼°ÒÔÍâ²¿·Ö£¬´ËÊ±Ñ¡ÓÃµÄÊÇ³õ´Î·ÖÀëÂ­¹ÇµÄãĞÖµ
-	imshow("Ô­Í¼È¥³ıÂ­¹Ç",img_deleteBone);
+	//---------------------å»é™¤é¢…éª¨åŠä»¥å¤–éƒ¨åˆ†--------------------
+	Imagine_Convert(copyLG2,thresholdValue2,255);//marké¢…éª¨çš„ä½ç½®	
+	Mat img_deleteBone=deleteOutside(image,copyLG2,thresholdValue2);//å»é™¤é¢…éª¨åŠä»¥å¤–éƒ¨åˆ†ï¼Œæ­¤æ—¶é€‰ç”¨çš„æ˜¯åˆæ¬¡åˆ†ç¦»é¢…éª¨çš„é˜ˆå€¼
+	imshow("åŸå›¾å»é™¤é¢…éª¨",img_deleteBone);
 
-	//----------------------·Ö¸îÄÔ¼¹Òº---------------------------
-	Imagine_Convert(img_deleteBone,0,thresholdValue5);//½«ÄÔ¼¹Òº²¿·ÖµÄÏñËØµã»Ò¶ÈÖÃ255(°×)
-	deleteNS(img_deleteBone);//È¥³ıÄÔÊÒ
-	imshow("ÄÔ¼¹Òº",img_deleteBone);
+	//----------------------åˆ†å‰²è„‘è„Šæ¶²---------------------------
+	Imagine_Convert(img_deleteBone,0,thresholdValue5);//å°†è„‘è„Šæ¶²éƒ¨åˆ†çš„åƒç´ ç‚¹ç°åº¦ç½®255(ç™½)
+	//deleteNS(img_deleteBone);//å»é™¤è„‘å®¤
+	imshow("è„‘è„Šæ¶²",img_deleteBone);
+
+    //è°ƒç”¨äºŒå€¼å›¾åƒå¼€æ“ä½œ
+    imshow("å¼€æ“ä½œ",binaryOpen(img_deleteBone,structureElement));
+		    
+	//img_deleteBone=binaryOpen(img_deleteBone,structureElement);
+
 	double numberNJY = count(img_deleteBone);
-	cout<<"ÄÔ¼¹ÒºÏñËØµã¸öÊıÎª£º"<<numberNJY<<endl;
+	cout<<"è„‘è„Šæ¶²åƒç´ ç‚¹ä¸ªæ•°ä¸ºï¼š"<<numberNJY<<endl;
 
-	//---------------------È¥³ıÄÔ¼¹Òº¼°ÒÔÍâ²¿·Ö------------------
-	Mat img_deleteNJY=deleteOutside(copyNJY,img_deleteBone,255);//È¥³ıÄÔ¼¹Òº¼°ÒÔÍâ²¿·Ö
-	imshow("Ô­Í¼È¥³ıÄÔ¼¹Òº",img_deleteNJY);
+	//---------------------å»é™¤è„‘è„Šæ¶²åŠä»¥å¤–éƒ¨åˆ†------------------
+	Mat img_deleteNJY=deleteOutside(copyNJY,img_deleteBone,255);//å»é™¤è„‘è„Šæ¶²åŠä»¥å¤–éƒ¨åˆ†
+	imshow("åŸå›¾å»é™¤è„‘è„Šæ¶²",img_deleteNJY);
 
-	//-----------------------·Ö¸îÄÔÊµÖÊ--------------------------
-	Imagine_Convert(img_deleteNJY,thresholdValue7-5,thresholdValue8);//½«ÄÔÊµÖÊ²¿·ÖµÄÏñËØµã»Ò¶ÈÖÃ255(°×)
-	imshow("ÄÔÊµÖÊ",img_deleteNJY);
+	//-----------------------åˆ†å‰²è„‘å®è´¨--------------------------
+	Imagine_Convert(img_deleteNJY,thresholdValue7-5,thresholdValue8);//å°†è„‘å®è´¨éƒ¨åˆ†çš„åƒç´ ç‚¹ç°åº¦ç½®255(ç™½)
+	imshow("è„‘å®è´¨",img_deleteNJY);
 	double numberNSZ = count(img_deleteNJY);
-	cout<<"ÄÔÊµÖÊÏñËØµã¸öÊıÎª£º"<<numberNSZ<<endl;
+	cout<<"è„‘å®è´¨åƒç´ ç‚¹ä¸ªæ•°ä¸ºï¼š"<<numberNSZ<<endl;
 
-	double num=(numberNJY+numberNSZ)/65530*81;//S¾Ö=N¾Ö/N×Ü*S×Ü£¬ÕâÀïÓÃµ½µÄÊÇÕâ¸ö¹«Ê½£¬S×ÜÊÇ¸ÃÍ¼Æ¬µÄ×ÜÃæ»ı£¬ÓÉÓÚ¸ÃÍ¼Æ¬ÊÇ°´±ÈÀıËõĞ¡µÄ£¬ËùÒÔÏÈ¼ÆËã³ö½á¹û£¬ÔÙ°´±ÈÀı»¹Ô­¡£
-	//double ss=num;
-	cout<<"ÄÔÊµÖÊ+ÄÔ¼¹ÒºÃæ»ı£¨¸ÃÍ¼Æ¬ÖĞµÄÃæ»ı£©Îª£º"<<num<<endl;
+	double num=(numberNJY+numberNSZ)/65530*81;//Så±€=Nå±€/Næ€»*Sæ€»ï¼Œè¿™é‡Œç”¨åˆ°çš„æ˜¯è¿™ä¸ªå…¬å¼ï¼ŒSæ€»æ˜¯è¯¥å›¾ç‰‡çš„æ€»é¢ç§¯ï¼Œç”±äºè¯¥å›¾ç‰‡æ˜¯æŒ‰æ¯”ä¾‹ç¼©å°çš„ï¼Œæ‰€ä»¥å…ˆè®¡ç®—å‡ºç»“æœï¼Œå†æŒ‰æ¯”ä¾‹è¿˜åŸã€‚
+	cout<<"è„‘å®è´¨+è„‘è„Šæ¶²é¢ç§¯ï¼ˆè¯¥å›¾ç‰‡ä¸­çš„é¢ç§¯ï¼‰ä¸ºï¼š"<<num<<endl;
 	
 	waitKey();
 	system("pause");
@@ -90,12 +117,12 @@ int OSTU_Alg_Threshold(const Mat image,int value1,int value2)
 { 
 	if(image.channels()!=1)
 	{
-		cout<<"please input Cray-image!"<<endl;  //²»ÊÇµ¥Í¨µÀ»Ò¶ÈÍ¼ÍË³ö 
+		cout<<"please input Cray-image!"<<endl;  //ä¸æ˜¯å•é€šé“ç°åº¦å›¾é€€å‡º 
 		return -1;
 	}
 	int HUIDU[256]={0};
-	double N=0;  //ÏñËØµãÊı
-	int T=0;  //³õÊ¼»¯ãĞÖµ
+	double N=0;  //åƒç´ ç‚¹æ•°
+	int T=0;  //åˆå§‹åŒ–é˜ˆå€¼
 	double g1=0;
 	uchar*data=image.data;
 	for(int i=0;i<image.rows;i++)
@@ -111,14 +138,14 @@ int OSTU_Alg_Threshold(const Mat image,int value1,int value2)
 	}
 	for(int k=value1;k<=value2;k++)
 	{
-		int N0=0;     //Ç°¾°Êı
-		int N1=0;     //±³¾°Êı
-		double w0=0;  //Ç°¾°±ÈÀı
-		double w1=0;  //±³¾°±ÈÀı
-		double u0=0;  //Ç°¾°Æ½¾ù»Ò¶È
-		double u1=0;  //±³¾°Æ½¾ù»Ò¶È
-		double h0=0;  //Ç°¾°×Ü»Ò¶È
-		double h1=0;  //±³¾°×Ü»Ò¶È
+		int N0=0;     //å‰æ™¯æ•°
+		int N1=0;     //èƒŒæ™¯æ•°
+		double w0=0;  //å‰æ™¯æ¯”ä¾‹
+		double w1=0;  //èƒŒæ™¯æ¯”ä¾‹
+		double u0=0;  //å‰æ™¯å¹³å‡ç°åº¦
+		double u1=0;  //èƒŒæ™¯å¹³å‡ç°åº¦
+		double h0=0;  //å‰æ™¯æ€»ç°åº¦
+		double h1=0;  //èƒŒæ™¯æ€»ç°åº¦
 		for(int m=0;m<=k;m++)
 		{
 			N1=N1+HUIDU[m];
@@ -147,7 +174,7 @@ int Imagine_Convert(const Mat image,int value1,int value2)
 	uchar*data=image.data;
 	for(int i=0;i<=image.rows*image.cols;i++)
 	{
-		if(data[i]<=value1||data[i]>value2) //¶ÔÍ¼Æ¬imageÖĞ»Ò¶ÈÖµÔÚvalue1-value2Ö®¼äµÄÏñËØµã»Ò¶ÈÖÃÎª255(°×)£¬ÆäËûÏñËØµã¾ùÖÃ0(ºÚ)
+		if(data[i]<=value1||data[i]>value2) //å¯¹å›¾ç‰‡imageä¸­ç°åº¦å€¼åœ¨value1-value2ä¹‹é—´çš„åƒç´ ç‚¹ç°åº¦ç½®ä¸º255(ç™½)ï¼Œå…¶ä»–åƒç´ ç‚¹å‡ç½®0(é»‘)
 		{
 			data[i]=0;
 		}
@@ -160,10 +187,10 @@ int Imagine_Convert(const Mat image,int value1,int value2)
 }
 
 
-//¶ÔÓÚÌáÈ¡³öµÄÄÔ¼¹Òº£¬³ıÈ¥¶àÓàµÄÄÔÊÒ²¿·Ö(¼´Ò»¸ö¾ØĞÎÇøÓò)
+//å¯¹äºæå–å‡ºçš„è„‘è„Šæ¶²ï¼Œé™¤å»å¤šä½™çš„è„‘å®¤éƒ¨åˆ†(å³ä¸€ä¸ªçŸ©å½¢åŒºåŸŸ)
 int deleteNS(const Mat markImage)
 {	
-	uchar*markImageData = markImage.data;//ÌáÈ¡Ä¿±êÇøÓòºóµÄÍ¼Ïñ£¬ÓÃÀ´±ê¼ÇÄ¿±êÇøÓò
+	uchar*markImageData = markImage.data;//æå–ç›®æ ‡åŒºåŸŸåçš„å›¾åƒï¼Œç”¨æ¥æ ‡è®°ç›®æ ‡åŒºåŸŸ
 	for(int i=0; i<120; i++)
 	{
 		for(int j=0; j<100; j++)
@@ -174,28 +201,28 @@ int deleteNS(const Mat markImage)
 	return 0;
 }
 
-//È¥³ıÄ¿±êÇøÓò¼°ÒÔÍâ²¿·Ö
+//å»é™¤ç›®æ ‡åŒºåŸŸåŠä»¥å¤–éƒ¨åˆ†
 Mat deleteOutside(const Mat image,const Mat markImage,int threshold)
 {
-	uchar*data = image.data;//´ı´¦ÀíÍ¼Æ¬
-	uchar*markImageData = markImage.data;//ÌáÈ¡Ä¿±êÇøÓòºóµÄÍ¼Ïñ£¬ÓÃÀ´±ê¼ÇÄ¿±êÇøÓò
-	int flag[256][256]={0};//±ê¼Ç¾ØÕó
+	uchar*data = image.data;//å¾…å¤„ç†å›¾ç‰‡
+	uchar*markImageData = markImage.data;//æå–ç›®æ ‡åŒºåŸŸåçš„å›¾åƒï¼Œç”¨æ¥æ ‡è®°ç›®æ ‡åŒºåŸŸ
+	int flag[256][256]={0};//æ ‡è®°çŸ©é˜µ
 			
-	//¶ÔÍ¼ÏñÖĞÄ¿±êÇøÓòµÄ»Ò¶ÈÖµÖÃ0£¬¼´È¥³ıÄ¿±êÇøÓò£¬½«Æä±ä³É±³¾°
+	//å¯¹å›¾åƒä¸­ç›®æ ‡åŒºåŸŸçš„ç°åº¦å€¼ç½®0ï¼Œå³å»é™¤ç›®æ ‡åŒºåŸŸï¼Œå°†å…¶å˜æˆèƒŒæ™¯
 	for(int i=0; i<image.rows; i++)
 	{
 		for(int j=0; j<image.cols; j++)
 		{
-			if(markImageData[i*markImage.step+j]>= threshold) //»Ò¶ÈÖµ´óÓÚµÈÓÚãĞÖµ£¬ÊôÓÚÄ¿±êÇøÓò
+			if(markImageData[i*markImage.step+j]>= threshold) //ç°åº¦å€¼å¤§äºç­‰äºé˜ˆå€¼ï¼Œå±äºç›®æ ‡åŒºåŸŸ
 			{
 				data[i*image.step+j] = 0;
-				flag[i][j] = 1;//±ê¼Ç³ÉÄ¿±êÇøÓò
+				flag[i][j] = 1;//æ ‡è®°æˆç›®æ ‡åŒºåŸŸ
 			}
 		}			
 	}	
 		
-	//ÔÙ´Î±éÀúÍ¼Ïñ£¬ÕÒµ½Ã¿Ò»ĞĞÖĞµÚÒ»¸öÊôÓÚÄ¿±êÇøÓòµÄÏñËØµã£¬½«¸ÃµãÇ°ÃæµÄËùÓĞµãÖÃÎª0¡£
-	//¼´½«Í¼ÏñµÄ×ó°ë²¿·ÖÄ¿±êÇøÓò¼°Ä¿±êÇøÓòÒÔÍâÇøÓòÖÃÎª0
+	//å†æ¬¡éå†å›¾åƒï¼Œæ‰¾åˆ°æ¯ä¸€è¡Œä¸­ç¬¬ä¸€ä¸ªå±äºç›®æ ‡åŒºåŸŸçš„åƒç´ ç‚¹ï¼Œå°†è¯¥ç‚¹å‰é¢çš„æ‰€æœ‰ç‚¹ç½®ä¸º0ã€‚
+	//å³å°†å›¾åƒçš„å·¦åŠéƒ¨åˆ†ç›®æ ‡åŒºåŸŸåŠç›®æ ‡åŒºåŸŸä»¥å¤–åŒºåŸŸç½®ä¸º0
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=0;m<image.cols;m++)
@@ -204,13 +231,13 @@ Mat deleteOutside(const Mat image,const Mat markImage,int threshold)
 			{
 				for(int k=0;k<m;k++)
 					data[n*image.step+k]=0;
-				break;//½«µÚÒ»¸öÊôÓÚÄ¿±êÇøÓòµÄÏñËØµãÇ°ÃæµÄËùÓĞµãÖÃÎª0ºó£¬Ìø×ªÏÂÒ»ĞĞ¡£
+				break;//å°†ç¬¬ä¸€ä¸ªå±äºç›®æ ‡åŒºåŸŸçš„åƒç´ ç‚¹å‰é¢çš„æ‰€æœ‰ç‚¹ç½®ä¸º0åï¼Œè·³è½¬ä¸‹ä¸€è¡Œã€‚
 			}			
 		}	
 	}
 	
-	//Í¬Àí£¬ÔÙ´Î±éÀúÍ¼Ïñ£¬ÕÒµ½Ã¿Ò»ĞĞÖĞ×îºóÒ»¸öÊôÓÚÄ¿±êÇøÓòµÄÏñËØµã£¬½«¸ÃµãºóÃæµÄËùÓĞµãÖÃÎª0¡£
-	//¼´½«Í¼ÏñµÄÓÒ°ë²¿·ÖÄ¿±êÇøÓò¼°Ä¿±êÇøÓòÒÔÍâÇøÓòÖÃÎª0
+	//åŒç†ï¼Œå†æ¬¡éå†å›¾åƒï¼Œæ‰¾åˆ°æ¯ä¸€è¡Œä¸­æœ€åä¸€ä¸ªå±äºç›®æ ‡åŒºåŸŸçš„åƒç´ ç‚¹ï¼Œå°†è¯¥ç‚¹åé¢çš„æ‰€æœ‰ç‚¹ç½®ä¸º0ã€‚
+	//å³å°†å›¾åƒçš„å³åŠéƒ¨åˆ†ç›®æ ‡åŒºåŸŸåŠç›®æ ‡åŒºåŸŸä»¥å¤–åŒºåŸŸç½®ä¸º0
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=image.cols;m>=0;m--)
@@ -219,12 +246,12 @@ Mat deleteOutside(const Mat image,const Mat markImage,int threshold)
 			{
 				for(int k=image.cols;k>m;k--)
 					data[n*image.step+k]=0;
-				break;//½«×îºóÒ»¸öÊôÓÚÄ¿±êÇøÓòµÄÏñËØµãºóÃæµÄËùÓĞµãÖÃÎª0ºó£¬Ìø×ªÏÂÒ»ĞĞ¡£
+				break;//å°†æœ€åä¸€ä¸ªå±äºç›®æ ‡åŒºåŸŸçš„åƒç´ ç‚¹åé¢çš„æ‰€æœ‰ç‚¹ç½®ä¸º0åï¼Œè·³è½¬ä¸‹ä¸€è¡Œã€‚
 			}			
 		}	
 	}
 	
-	//È¥³ıÍ¼ÏñÉÏÏÂ°ë²¿·ÖµÄ·Ç0±³¾°¡£
+	//å»é™¤å›¾åƒä¸Šä¸‹åŠéƒ¨åˆ†çš„é0èƒŒæ™¯ã€‚
 	for(int n=0;n<image.rows;n++)
 	{
 		for(int m=0;m<image.cols;m++)
@@ -256,4 +283,342 @@ int count(const Mat image){
 		if(data[i]== 255)
 			sum++;
 	return sum;
+}
+
+//æŠŠç°åº¦å›¾åƒè½¬åŒ–ä¸ºäºŒå€¼å›¾åƒ
+Mat changeToBinaryImage(Mat grayImage)
+{
+    Mat binaryImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    //è½¬åŒ–ä¸ºäºŒå€¼å›¾åƒ
+    for (int i = 0; i < grayImage.rows; i++)
+    {
+        for (int j = 0; j < grayImage.cols; j++)
+        {
+            if (grayImage.data[i*grayImage.step + j]>100)
+            {
+                binaryImage.data[i*grayImage.step + j] = 255;
+            }
+            else
+            {
+                binaryImage.data[i*grayImage.step + j] = 0;
+            }
+        }
+    }
+    imshow("binaryImage", binaryImage);
+
+    return binaryImage; 
+}
+
+//åˆ›å»ºç»“æ„å…ƒç´ 
+//ä¸€èˆ¬ç»“æ„å…ƒç´  å…³äºåŸç‚¹å¯¹ç§°
+//Mat createSE()
+//{
+//  int a[3][3]={ 0,1,0,
+//  1,1,1,
+//  0,1,0};
+//  Mat structureElement(3, 3, CV_8UC1, a);
+//}
+
+//äºŒå€¼å›¾åƒè…èš€æ“ä½œ
+Mat binaryErosion(Mat binaryImage, Mat se)
+{
+    //äºŒå€¼å›¾åƒç§»åŠ¨
+    Mat window(se.rows, se.cols, CV_8UC1);
+
+    //å®šä¹‰ä¸€ä¸ªçŸ©é˜µï¼Œå­˜å‚¨è…èš€åçš„å›¾åƒ
+    Mat binaryErosionImage(binaryImage.rows, binaryImage.cols, CV_8UC1, Scalar(0));
+
+    for (int i = (se.rows-1)/2; i < binaryImage.rows-(se.rows-1)/2; i++)
+    {
+        for (int j = (se.cols - 1) / 2; j < binaryImage.cols - (se.cols - 1) / 2; j++)
+        {
+            //å…ˆè®¾ç½®ç¬¬iè¡Œç¬¬jåˆ—åƒç´ å€¼ä¸º255ï¼Œå³ç™½è‰²
+            binaryErosionImage.data[i*binaryImage.step + j] = 255;
+            for (int row = 0; row < se.rows; row++)
+            {
+                for (int col = 0; col < se.cols; col++)
+                {
+                    //æŠŠseå¯¹åº”çš„å…ƒç´ èµ‹å€¼åˆ°ä¸seç»“æ„ç›¸åŒçš„çŸ©é˜µä¸­
+                    window.data[row*window.step + col] = binaryImage.data[(i + row - (window.rows - 1) / 2)*binaryImage.step + (j + col - (window.cols - 1) / 2)];
+                }
+            }
+            //æ¯”è¾ƒseä¸windowä¸­çš„åƒç´ å€¼
+            int row, col;
+            for (row = 0; row < se.rows; row++)
+            {
+                for (col = 0; col < se.cols; col++)
+                {
+                    if (se.data[row*se.step + col] != window.data[row*se.step + col])
+                    {
+                        break;
+                    }
+                }
+                if (col == se.cols)
+                {
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            if (row == se.rows&&col == se.cols)
+            {
+                binaryErosionImage.data[i*binaryImage.step + j] = 0;
+        }
+        }
+    }
+
+    //imshow("binaryErosionImage", binaryErosionImage);
+
+    return binaryErosionImage;
+}
+
+//äºŒå€¼å›¾åƒè†¨èƒ€æ“ä½œ
+Mat binaryDilation(Mat binaryImage, Mat se)
+{
+    //äºŒå€¼å›¾åƒç§»åŠ¨
+    Mat window(se.rows, se.cols, CV_8UC1);
+
+    //å®šä¹‰ä¸€ä¸ªçŸ©é˜µï¼Œå­˜å‚¨è†¨èƒ€åçš„å›¾åƒ
+    Mat binaryDilationImage(binaryImage.rows, binaryImage.cols, CV_8UC1, Scalar(0));
+
+    for (int i = (se.rows - 1) / 2; i < binaryImage.rows - (se.rows - 1) / 2; i++)
+    {
+        for (int j = (se.cols - 1) / 2; j < binaryImage.cols - (se.cols - 1) / 2; j++)
+        {
+            //å…ˆè®¾ç½®ç¬¬iè¡Œç¬¬jåˆ—åƒç´ å€¼ä¸º255ï¼Œå³ç™½è‰²
+            binaryDilationImage.data[i*binaryImage.step + j] = 255;
+            for (int row = 0; row < se.rows; row++)
+            {
+                for (int col = 0; col < se.cols; col++)
+                {
+                    //æŠŠseå¯¹åº”çš„å…ƒç´ èµ‹å€¼åˆ°ä¸seç»“æ„ç›¸åŒçš„çŸ©é˜µä¸­
+                    window.data[row*window.step + col] = binaryImage.data[(i + row - (window.rows - 1) / 2)*binaryImage.step + (j + col - (window.cols - 1) / 2)];
+                }
+            }
+            //æ¯”è¾ƒseä¸windowä¸­çš„åƒç´ å€¼
+            //åªè¦æœ‰ä¸€ä¸ªç›¸åŒ¹é… å°±æŠŠåƒç´ å€¼è®¾ä¸º0ï¼Œå³ç½®é»‘
+            int flag = 0;  //æ ‡è®°æ˜¯å¦æœ‰å¯¹åº”ç›¸ç­‰çš„åƒç´ å€¼ï¼š0è¡¨ç¤ºæ²¡æœ‰ï¼Œ1è¡¨ç¤ºæœ‰
+            int row, col;
+            for (row = 0; row < se.rows; row++)
+            {
+                for (col = 0; col < se.cols; col++)
+                {
+                    if (se.data[row*se.step + col] == window.data[row*se.step + col])
+                    {
+                        flag = 1;
+                        break;
+                    }
+                }
+                if (flag)
+                {
+                    break;
+                }
+            }
+            if (flag)
+            {
+                //å¦‚æœæœ‰äº¤é›†ï¼Œå°±è®¾ç½®ä¸ºé»‘ï¼Œå³0
+                binaryDilationImage.data[i*binaryImage.step + j] = 0;
+            }
+        }
+    }
+
+    //imshow("binaryDilationImage", binaryDilationImage);
+    return binaryDilationImage;
+}
+
+//ç°åº¦å›¾åƒè…èš€æ“ä½œ
+Mat grayErosion(Mat grayImage,Mat se)
+{
+    //ç»“æ„å…ƒç´ ç§»åŠ¨æ—¶æ‰€å¯¹åº”çš„æºå›¾åƒåŒºåŸŸ
+    Mat window(se.rows, se.cols, CV_8UC1);
+
+    //å®šä¹‰ä¸€ä¸ªçŸ©é˜µï¼Œå­˜å‚¨è…èš€åçš„å›¾åƒ
+    Mat grayErosionImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    for (int i = (se.rows - 1) / 2; i < grayImage.rows - (se.rows - 1) / 2; i++)
+    {
+        for (int j = (se.cols - 1) / 2; j < grayImage.cols - (se.cols - 1) / 2; j++)
+        {
+            //å…ˆè®¾ç½®ç¬¬iè¡Œç¬¬jåˆ—åƒç´ å€¼ä¸º255ï¼Œå³ç™½è‰²
+            grayErosionImage.data[i*grayImage.step + j] = 255;
+            for (int row = 0; row < se.rows; row++)
+            {
+                for (int col = 0; col < se.cols; col++)
+                {
+                    //æŠŠseå¯¹åº”çš„å…ƒç´ èµ‹å€¼åˆ°ä¸seç»“æ„ç›¸åŒçš„çŸ©é˜µwindowä¸­
+                    window.data[row*window.step + col] = grayImage.data[(i + row - (window.rows - 1) / 2)*grayImage.step + (j + col - (window.cols - 1) / 2)];
+                }
+            }
+            //æ¯”è¾ƒseä¸windowä¸­çš„åƒç´ å€¼
+            //åœ¨ç°åº¦å›¾åƒä¸­ï¼Œè…èš€æ˜¯å–windowä¸­æœ€å°çš„å€¼èµ‹å€¼ç»™åŸç‚¹æ‰€å¯¹ç”¨çš„åƒç´ 
+            int minPixel = 255;
+            int row, col;
+            for (row = 0; row < se.rows; row++)
+            {
+                for (col = 0; col < se.cols; col++)
+                {
+                    if (window.data[row*se.step + col] < minPixel)
+                    {
+                        minPixel = window.data[row*se.step + col];
+                    }
+                }   
+            }   
+            grayErosionImage.data[i*grayImage.step + j] = minPixel;
+        }
+    }
+
+    /*imshow("grayErosionImage", grayErosionImage);*/
+
+    return grayErosionImage;
+}
+
+//ç°åº¦å›¾åƒè†¨èƒ€æ“ä½œ
+Mat grayDilation(Mat grayImage,Mat se)
+{
+    //ç»“æ„å…ƒç´ ç§»åŠ¨æ—¶æ‰€å¯¹åº”çš„æºå›¾åƒåŒºåŸŸ
+    Mat window(se.rows, se.cols, CV_8UC1);
+
+    //å®šä¹‰ä¸€ä¸ªçŸ©é˜µï¼Œå­˜å‚¨è…èš€åçš„å›¾åƒ
+    Mat grayDilationImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    for (int i = (se.rows - 1) / 2; i < grayImage.rows - (se.rows - 1) / 2; i++)
+    {
+        for (int j = (se.cols - 1) / 2; j < grayImage.cols - (se.cols - 1) / 2; j++)
+        {
+            //å…ˆè®¾ç½®ç¬¬iè¡Œç¬¬jåˆ—åƒç´ å€¼ä¸º255ï¼Œå³ç™½è‰²
+            grayDilationImage.data[i*grayImage.step + j] = 255;
+            for (int row = 0; row < se.rows; row++)
+            {
+                for (int col = 0; col < se.cols; col++)
+                {
+                    //æŠŠseå¯¹åº”çš„å…ƒç´ èµ‹å€¼åˆ°ä¸seç»“æ„ç›¸åŒçš„çŸ©é˜µwindowä¸­
+                    window.data[row*window.step + col] = grayImage.data[(i + row - (window.rows - 1) / 2)*grayImage.step + (j + col - (window.cols - 1) / 2)];
+                }
+            }
+            //æ¯”è¾ƒseä¸windowä¸­çš„åƒç´ å€¼
+            //åœ¨ç°åº¦å›¾åƒä¸­ï¼Œè†¨èƒ€æ˜¯å–windowä¸­æœ€å¤§çš„å€¼èµ‹å€¼ç»™åŸç‚¹æ‰€å¯¹ç”¨çš„åƒç´ 
+            int maxPixel = 0;
+            int row, col;
+            for (row = 0; row < se.rows; row++)
+            {
+                for (col = 0; col < se.cols; col++)
+                {
+                    if (window.data[row*se.step + col] > maxPixel)
+                    {
+                        maxPixel = window.data[row*se.step + col];
+                    }
+                }
+            }
+            grayDilationImage.data[i*grayImage.step + j] = maxPixel;
+        }
+    }
+
+    /*imshow("grayDilationImage", grayDilationImage);*/
+
+    return grayDilationImage;
+}
+
+//äºŒå€¼å›¾åƒå¼€æ“ä½œ(å…ˆè…èš€ï¼Œåè†¨èƒ€)
+Mat binaryOpen(Mat binaryImage, Mat se)
+{
+    Mat openImage(binaryImage.rows,binaryImage.cols,CV_8UC1,Scalar(0));	
+
+    openImage = binaryDilation(binaryErosion(binaryImage, se), se);
+	openImage=binaryErosion(binaryDilation(openImage, se), se);
+	
+    return openImage;
+}
+
+//äºŒå€¼å›¾åƒé—­æ“ä½œ(å…ˆè†¨èƒ€ï¼Œåè…èš€)
+Mat binaryClose(Mat binaryImage, Mat se)
+{
+    Mat closeImage(binaryImage.rows, binaryImage.cols, CV_8UC1, Scalar(0));
+
+    closeImage = binaryErosion(binaryDilation(binaryImage, se), se);
+
+    return closeImage;
+}
+
+//ç°åº¦å›¾åƒå¼€æ“ä½œ
+Mat grayOpen(Mat grayImage, Mat se)
+{
+    Mat openImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    openImage = grayDilation(grayErosion(grayImage, se), se);
+
+    return openImage;
+}
+
+//ç°åº¦å›¾åƒé—­æ“ä½œ
+Mat grayClose(Mat grayImage, Mat se)
+{
+    Mat closeImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    closeImage = grayErosion(grayDilation(grayImage, se), se);
+
+    return closeImage;
+}
+
+//äºŒå€¼å›¾åƒè¾¹ç•Œæå–
+Mat binaryBorder(Mat binaryImage,Mat se)
+{
+    Mat borderImage(binaryImage.rows, binaryImage.cols, CV_8UC1, Scalar(0));
+    Mat erosionImage(binaryImage.rows, binaryImage.cols, CV_8UC1, Scalar(0));
+    erosionImage = binaryErosion(binaryImage,se);
+
+    for (int i = 0; i < erosionImage.rows; i++)
+    {
+        for (int j = 0; j < erosionImage.cols; j++)
+        {
+            if (binaryImage.data[i*erosionImage.step+j]!=erosionImage.data[i*erosionImage.step+j])
+            {
+                borderImage.data[i*erosionImage.step + j] = 255;
+            }
+        }
+    }
+
+    return borderImage;
+}
+
+//ç°åº¦å›¾åƒè¾¹ç•Œæå–
+Mat grayBorder(Mat grayImage, Mat se)
+{
+    Mat borderImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    borderImage = grayImage - grayErosion(grayImage, se);
+
+    return borderImage;
+}
+
+//ç°åº¦å›¾åƒæ¢¯åº¦
+Mat gradient(Mat grayImage, Mat se)
+{
+    Mat gradient(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    gradient = grayDilation(grayImage, se) - grayErosion(grayImage, se);
+
+    return gradient;
+}
+
+//ç°åº¦å›¾åƒçš„é¡¶å¸½è¿ç®— Tï¼ˆfï¼‰=f-fob
+Mat topHat(Mat grayImage,Mat se)
+{
+    Mat topHatImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    topHatImage = grayImage - grayOpen(grayImage,se);
+
+    return topHatImage;
+}
+
+//ç°åº¦å›¾åƒçš„åº•å¸½è¿ç®— Bï¼ˆfï¼‰=fâ‹…b-f
+Mat bottomHat(Mat grayImage, Mat se)
+{
+    Mat bottomHatImage(grayImage.rows, grayImage.cols, CV_8UC1, Scalar(0));
+
+    bottomHatImage = grayClose(grayImage, se)-grayImage;
+
+    return bottomHatImage;
 }
