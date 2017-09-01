@@ -28,9 +28,32 @@ Mat gradient(Mat grayImage, Mat se);//灰度图像梯度
 Mat topHat(Mat grayImage,Mat se);//灰度图像的顶帽运算 T（f）=f-fob
 Mat bottomHat(Mat grayImage, Mat se);	//灰度图像的底帽运算 B（f）=f⋅b-f
 
+long int deal(Mat image);//对一张图片的所有操作
+
 int main()
 {
-	Mat image=imread("image030.jpg");
+	char filename[52];
+    cv::Mat image;
+	int sum =0;//脑脊液和脑实质的像素点总和
+    for(int i=1;i<53;i++)
+    {
+		sprintf(filename,"image/image(%d).jpg",i);
+		image=imread(filename);//导入图片 
+		sum = sum + deal(image);
+    }
+	cout<<"脑脊液和脑实质的像素点总和： "<<sum<<endl;
+	double result = (double)sum/65530/52*729;//S局=N局/N总*S总，这里用到的是这个公式，S总是该图片的总面积，由于该图片是按比例缩小的，所以先计算出结果，再按比例还原。
+	cout<<"总体积： "<<result<<endl;
+	
+	waitKey();
+	system("pause");
+	return 0;
+}
+
+
+
+long int deal(Mat image)
+{
 	if(!image.data)
 	{
 		cout<<"读入图片失败！"<<endl;
@@ -44,7 +67,6 @@ int main()
 
 	//Mat element = getStructuringElement( MORPH_ELLIPSE, Size(-1,-1), Point(-1,-1) );
 
-
 	cvtColor(image,image,CV_RGB2GRAY);  //转换为单通道灰度图
 
 	Mat copyLG1;
@@ -55,62 +77,62 @@ int main()
 	image.copyTo(copyNJY);//备份原始图像，用来去除脑脊液
 
 	int thresholdValue1=OSTU_Alg_Threshold(image,0,255);  //分离出前景(脑实质+颅骨)与背景(脑脊液+图片背景)
-	cout<<"阈值1(分离出前景(脑实质+颅骨)与背景(脑脊液+图片背景))为："<<thresholdValue1<<endl;
+	//cout<<"阈值1(分离出前景(脑实质+颅骨)与背景(脑脊液+图片背景))为："<<thresholdValue1<<endl;
 
 	int thresholdValue2=OSTU_Alg_Threshold(image,thresholdValue1,255);  //初次分离出颅骨
 	int thresholdValue3=OSTU_Alg_Threshold(image,thresholdValue2,255);  //对分离出颅骨进行一次迭代优化
 
 	int thresholdValue4=(thresholdValue2+thresholdValue3)/2;  //对两次分离颅骨的阈值取平均值
-	cout<<"阈值4(分割颅骨)为："<<thresholdValue4<<endl;
+	//cout<<"阈值4(分割颅骨)为："<<thresholdValue4<<endl;
 		
 	int thresholdValue5=(OSTU_Alg_Threshold(image,0,thresholdValue1)+thresholdValue1)/2; 
-	cout<<"阈值5为(分割脑脊液)："<<thresholdValue5<<endl;
+	//cout<<"阈值5为(分割脑脊液)："<<thresholdValue5<<endl;
 
 	int thresholdValue6=OSTU_Alg_Threshold(image,thresholdValue1,(thresholdValue1+thresholdValue2)/2); 
 
 	int thresholdValue7=(thresholdValue1+thresholdValue6)/2; 
-	cout<<"阈值7(分割出脑实质)为："<<thresholdValue7<<endl;
+	//cout<<"阈值7(分割出脑实质)为："<<thresholdValue7<<endl;
 
 	int thresholdValue8=(thresholdValue1+thresholdValue2)/2; 
-	cout<<"阈值8(分割出脑实质)为："<<thresholdValue8<<endl;
+	//cout<<"阈值8(分割出脑实质)为："<<thresholdValue8<<endl;
 	//---------------------分割颅骨------------------------------
 	Imagine_Convert(copyLG1,thresholdValue4,255);
-	imshow("颅骨",copyLG1);
+	//imshow("颅骨",copyLG1);
 
 	//---------------------去除颅骨及以外部分--------------------
 	Imagine_Convert(copyLG2,thresholdValue2,255);//mark颅骨的位置	
 	Mat img_deleteBone=deleteOutside(image,copyLG2,thresholdValue2);//去除颅骨及以外部分，此时选用的是初次分离颅骨的阈值
-	imshow("原图去除颅骨",img_deleteBone);
+	//imshow("原图去除颅骨",img_deleteBone);
 
 	//----------------------分割脑脊液---------------------------
 	Imagine_Convert(img_deleteBone,0,thresholdValue5);//将脑脊液部分的像素点灰度置255(白)
 	//deleteNS(img_deleteBone);//去除脑室
-	imshow("脑脊液",img_deleteBone);
+	//imshow("脑脊液",img_deleteBone);
 
     //调用二值图像开操作
-    imshow("开操作",binaryOpen(img_deleteBone,structureElement));
+    //imshow("开操作",binaryOpen(img_deleteBone,structureElement));
 		    
 	//img_deleteBone=binaryOpen(img_deleteBone,structureElement);
 
-	double numberNJY = count(img_deleteBone);
-	cout<<"脑脊液像素点个数为："<<numberNJY<<endl;
+	int numberNJY = count(img_deleteBone);
+	//cout<<"脑脊液像素点个数为："<<numberNJY<<endl;
 
 	//---------------------去除脑脊液及以外部分------------------
 	Mat img_deleteNJY=deleteOutside(copyNJY,img_deleteBone,255);//去除脑脊液及以外部分
-	imshow("原图去除脑脊液",img_deleteNJY);
+	//imshow("原图去除脑脊液",img_deleteNJY);
 
 	//-----------------------分割脑实质--------------------------
 	Imagine_Convert(img_deleteNJY,thresholdValue7-5,thresholdValue8);//将脑实质部分的像素点灰度置255(白)
-	imshow("脑实质",img_deleteNJY);
-	double numberNSZ = count(img_deleteNJY);
-	cout<<"脑实质像素点个数为："<<numberNSZ<<endl;
+	//imshow("脑实质",img_deleteNJY);
 
-	double num=(numberNJY+numberNSZ)/65530*81;//S局=N局/N总*S总，这里用到的是这个公式，S总是该图片的总面积，由于该图片是按比例缩小的，所以先计算出结果，再按比例还原。
-	cout<<"脑实质+脑脊液面积（该图片中的面积）为："<<num<<endl;
-	
-	waitKey();
-	system("pause");
-	return 0;
+	int numberNSZ = count(img_deleteNJY);
+	//cout<<"脑实质像素点个数为："<<numberNSZ<<endl;
+
+	int num = numberNJY+numberNSZ;
+	//cout<<"脑实质+脑脊液的像素点个数和："<<num<<endl;
+
+	return num;
+
 }
 
 int OSTU_Alg_Threshold(const Mat image,int value1,int value2)
@@ -278,7 +300,7 @@ Mat deleteOutside(const Mat image,const Mat markImage,int threshold)
 
 int count(const Mat image){
 	uchar*data=image.data;
-	int sum =0;
+	long int sum =0;
 	for(int i=0;i<=image.rows*image.cols;i++)
 		if(data[i]== 255)
 			sum++;
